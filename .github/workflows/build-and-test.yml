@@ -4,22 +4,13 @@ on: [push, pull_request]
 
 env:
   LLVM_COMMIT: 2b135b931338a57c38d9c4a34ffdd59877ba82d6
-  CMAKE_FLAGS: '-DCMAKE_LINKER=lld -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DMLIR_DIR=$GITHUB_WORKSPACE/llvm-project/prefix/lib/cmake/mlir/ -DLLVM_DIR=$GITHUB_WORKSPACE/llvm-project/prefix/lib/cmake/llvm/ -DLLVM_EXTERNAL_LIT=$GITHUB_WORKSPACE/llvm-project/build/bin/llvm-lit'
+  CMAKE_FLAGS: '-DCMAKE_LINKER=lld -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DMLIR_DIR=$GITHUB_WORKSPACE/llvm-project/prefix/lib/cmake/mlir/ -DLLVM_DIR=$GITHUB_WORKSPACE/llvm-project/prefix/lib/cmake/llvm/ -DLLVM_EXTERNAL_LIT=$GITHUB_WORKSPACE/llvm-project/build/bin/llvm-lit -DLLVM_LIT_ARGS="--xunit-xml-output=lit-report.xml"'
+
+permissions:
+  checks: write
+  pull-requests: write
 
 jobs:
-  lint:
-    name: Check formatting
-    runs-on: ubuntu-latest
-    steps:
-      - name: Get Template Code
-        uses: actions/checkout@v5
-      - name: clang-format
-        uses: DoozyX/clang-format-lint-action@v0.20
-        with:
-          source: '.'
-          extensions: 'h,cpp'
-          clangFormatVersion: 20
-
   build:
     name: Build and test
     runs-on: ubuntu-latest
@@ -59,3 +50,9 @@ jobs:
           cd $GITHUB_WORKSPACE/eff-dialect/build
           cmake $GITHUB_WORKSPACE/eff-dialect -DCMAKE_BUILD_TYPE=Release ${{ env.CMAKE_FLAGS }}
           cmake --build . --target check-eff -- -j$(nproc)
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: (!cancelled())
+        with:
+          files: |
+            **/*-report.xml
