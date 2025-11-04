@@ -14,11 +14,11 @@ jobs:
       - name: Get Template Code
         uses: actions/checkout@v5
       - name: clang-format
-        uses: DoozyX/clang-format-lint-action@v0.6
+        uses: DoozyX/clang-format-lint-action@v0.20
         with:
           source: '.'
           extensions: 'h,cpp'
-          clangFormatVersion: 9
+          clangFormatVersion: 20
 
   build:
     name: Build and test
@@ -58,4 +58,4 @@ jobs:
           mkdir $GITHUB_WORKSPACE/eff-dialect/build
           cd $GITHUB_WORKSPACE/eff-dialect/build
           cmake $GITHUB_WORKSPACE/eff-dialect -DCMAKE_BUILD_TYPE=Release ${{ env.CMAKE_FLAGS }}
-          cmake --build . --target check-standalone -- -j$(nproc)
+          cmake --build . --target check-eff -- -j$(nproc)

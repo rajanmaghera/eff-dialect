@@ -1,6 +1,6 @@
 include(AddMLIRPython)
 
-# Specifies that all MLIR packages are co-located under the `mlir_standalone`
+# Specifies that all MLIR packages are co-located under the `mlir_eff`
 # top level package (the API has been embedded in a relocatable way).
 add_compile_definitions("MLIR_PYTHON_PACKAGE_PREFIX=${MLIR_PYTHON_PACKAGE_PREFIX}.")
 
@@ -9,39 +9,39 @@ add_compile_definitions("MLIR_PYTHON_PACKAGE_PREFIX=${MLIR_PYTHON_PACKAGE_PREFIX
 # Sources
 ################################################################################
 
-declare_mlir_python_sources(StandalonePythonSources)
+declare_mlir_python_sources(EffPythonSources)
 
 declare_mlir_dialect_python_bindings(
-  ADD_TO_PARENT StandalonePythonSources
-  ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/mlir_standalone"
-  TD_FILE dialects/StandaloneOps.td
+  ADD_TO_PARENT EffPythonSources
+  ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/mlir_eff"
+  TD_FILE dialects/EffOps.td
   SOURCES
-    dialects/standalone_pybind11.py
-    dialects/standalone_nanobind.py
-  DIALECT_NAME standalone)
+    dialects/eff_pybind11.py
+    dialects/eff_nanobind.py
+  DIALECT_NAME eff)
 
 
-declare_mlir_python_extension(StandalonePythonSources.Pybind11Extension
-  MODULE_NAME _standaloneDialectsPybind11
-  ADD_TO_PARENT StandalonePythonSources
+declare_mlir_python_extension(EffPythonSources.Pybind11Extension
+  MODULE_NAME _effDialectsPybind11
+  ADD_TO_PARENT EffPythonSources
   SOURCES
-    StandaloneExtensionPybind11.cpp
+    EffExtensionPybind11.cpp
   PRIVATE_LINK_LIBS
     LLVMSupport
   EMBED_CAPI_LINK_LIBS
-    StandaloneCAPI
+    EffCAPI
   PYTHON_BINDINGS_LIBRARY pybind11
 )
 
-declare_mlir_python_extension(StandalonePythonSources.NanobindExtension
-  MODULE_NAME _standaloneDialectsNanobind
-  ADD_TO_PARENT StandalonePythonSources
+declare_mlir_python_extension(EffPythonSources.NanobindExtension
+  MODULE_NAME _effDialectsNanobind
+  ADD_TO_PARENT EffPythonSources
   SOURCES
-    StandaloneExtensionNanobind.cpp
+    EffExtensionNanobind.cpp
   PRIVATE_LINK_LIBS
     LLVMSupport
   EMBED_CAPI_LINK_LIBS
-    StandaloneCAPI
+    EffCAPI
   PYTHON_BINDINGS_LIBRARY nanobind
 )
 
@@ -50,13 +50,13 @@ declare_mlir_python_extension(StandalonePythonSources.NanobindExtension
 # Common CAPI
 ################################################################################
 
-add_mlir_python_common_capi_library(StandalonePythonCAPI
-  INSTALL_COMPONENT StandalonePythonModules
+add_mlir_python_common_capi_library(EffPythonCAPI
+  INSTALL_COMPONENT EffPythonModules
   INSTALL_DESTINATION "${MLIR_BINDINGS_PYTHON_INSTALL_PREFIX}/_mlir_libs"
   OUTPUT_DIRECTORY "${MLIR_BINARY_DIR}/${MLIR_BINDINGS_PYTHON_INSTALL_PREFIX}/_mlir_libs"
   RELATIVE_INSTALL_ROOT "../../../.."
   DECLARED_SOURCES
-    StandalonePythonSources
+    EffPythonSources
     # TODO: Remove this in favor of showing fine grained registration once
     # available.
     MLIRPythonExtension.RegisterEverything
@@ -68,16 +68,16 @@ add_mlir_python_common_capi_library(StandalonePythonCAPI
 # Instantiation of all Python modules
 ################################################################################
 
-add_mlir_python_modules(StandalonePythonModules
+add_mlir_python_modules(EffPythonModules
   ROOT_PREFIX "${MLIR_BINARY_DIR}/${MLIR_BINDINGS_PYTHON_INSTALL_PREFIX}"
   INSTALL_PREFIX "${MLIR_BINDINGS_PYTHON_INSTALL_PREFIX}"
   DECLARED_SOURCES
-    StandalonePythonSources
+    EffPythonSources
     # TODO: Remove this in favor of showing fine grained registration once
     # available.
     MLIRPythonExtension.RegisterEverything
     MLIRPythonSources.Core
     MLIRPythonSources.Dialects.builtin
   COMMON_CAPI_LINK_LIBS
-    StandalonePythonCAPI
+    EffPythonCAPI
   )

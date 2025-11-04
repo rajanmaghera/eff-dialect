@@ -57,5 +57,10 @@ cmake --build . --target mlir-doc
 
 Build and run tests.
 ```shell
-cmake --build . --target check-standalone
+cmake --build . --target check-eff
+```
+
+Format all files.
+```shell
+find . -regex '.*\\.\\(cpp\\|h\\)' | xargs clang-format -i
 ```

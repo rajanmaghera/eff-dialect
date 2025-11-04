@@ -9,25 +9,25 @@ configure_lit_site_cfg(
         ${CMAKE_CURRENT_SOURCE_DIR}/lit.cfg.py
 )
 
-set(STANDALONE_TEST_DEPENDS
+set(EFF_TEST_DEPENDS
         FileCheck count not
-        standalone-capi-test
-        standalone-opt
-        standalone-translate
+        eff-capi-test
+        eff-opt
+        eff-translate
         )
 if(NOT WIN32)
-  list(APPEND STANDALONE_TEST_DEPENDS StandalonePlugin)
+  list(APPEND EFF_TEST_DEPENDS EffPlugin)
 endif()
 if(MLIR_ENABLE_BINDINGS_PYTHON)
-  list(APPEND STANDALONE_TEST_DEPENDS StandalonePythonModules)
+  list(APPEND EFF_TEST_DEPENDS EffPythonModules)
 endif()
 
-add_lit_testsuite(check-standalone "Running the standalone regression tests"
+add_lit_testsuite(check-eff "Running the eff regression tests"
         ${CMAKE_CURRENT_BINARY_DIR}
-        DEPENDS ${STANDALONE_TEST_DEPENDS}
+        DEPENDS ${EFF_TEST_DEPENDS}
         )
-set_target_properties(check-standalone PROPERTIES FOLDER "Tests")
+set_target_properties(check-eff PROPERTIES FOLDER "Tests")
 
-add_lit_testsuites(STANDALONE ${CMAKE_CURRENT_SOURCE_DIR} DEPENDS ${STANDALONE_TEST_DEPENDS})
+add_lit_testsuites(EFF ${CMAKE_CURRENT_SOURCE_DIR} DEPENDS ${EFF_TEST_DEPENDS})
 
 add_subdirectory(CAPI)
