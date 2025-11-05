@@ -120,14 +120,14 @@ FunctionType CallOp::getCalleeType() {
 //===----------------------------------------------------------------------===//
 
 
-EffType DoEffectOp::getEffectType() {
-   return EffType::get(getCallee(), FunctionType::get(getContext(), getOperandTypes(), getResultTypes()));
+SignatureType DoEffectOp::getEffectSig() {
+   return SignatureType::get(getCallee(), FunctionType::get(getContext(), getOperandTypes(), getResultTypes()));
  }
 
 
 LogicalResult DoEffectOp::verify() {
    auto function = cast<FuncOp>((*this)->getParentOp());
-   auto thiseffect = getEffectType();
+   auto thiseffect = getEffectSig();
 
    // TODO: deal with scopes with handlers
    // This effect must exist in the effect signature of the function
@@ -221,7 +221,7 @@ bool ConstantOp::isBuildableWith(Attribute value, Type type) {
 //===----------------------------------------------------------------------===//
 
 FuncOp FuncOp::create(Location location, StringRef name, FunctionType type,
-                      ArrayRef<EffType> effects,
+                      ArrayRef<SignatureType> effects,
                       ArrayRef<NamedAttribute> attrs) {
   OpBuilder builder(location->getContext());
   OperationState state(location, getOperationName());
@@ -229,13 +229,13 @@ FuncOp FuncOp::create(Location location, StringRef name, FunctionType type,
   return cast<FuncOp>(Operation::create(state));
 }
 FuncOp FuncOp::create(Location location, StringRef name, FunctionType type,
-ArrayRef<EffType> effects,
+ArrayRef<SignatureType> effects,
                       Operation::dialect_attr_range attrs) {
   SmallVector<NamedAttribute, 8> attrRef(attrs);
   return create(location, name, type, effects, llvm::ArrayRef(attrRef));
 }
 FuncOp FuncOp::create(Location location, StringRef name, FunctionType type,
-                      ArrayRef<EffType> effects,
+                      ArrayRef<SignatureType> effects,
                       ArrayRef<NamedAttribute> attrs,
                       ArrayRef<DictionaryAttr> argAttrs) {
   FuncOp func = create(location, name, type, effects, attrs);
@@ -245,13 +245,13 @@ FuncOp FuncOp::create(Location location, StringRef name, FunctionType type,
 
 void FuncOp::build(OpBuilder &builder, OperationState &state, StringRef name,
                    FunctionType type,
-                   ArrayRef<EffType> effects,
+                   ArrayRef<SignatureType> effects,
                    ArrayRef<NamedAttribute> attrs,
                    ArrayRef<DictionaryAttr> argAttrs) {
   state.addAttribute(SymbolTable::getSymbolAttrName(),
                      builder.getStringAttr(name));
   state.addAttribute(getFunctionTypeAttrName(state.name), TypeAttr::get(type));
-   auto a = llvm::map_to_vector<8>(effects, [](EffType v) -> Attribute {
+   auto a = llvm::map_to_vector<8>(effects, [](SignatureType v) -> Attribute {
      return TypeAttr::get(v);
    });
    state.addAttribute(getEffectsAttrName(state.name), builder.getArrayAttr(a));
@@ -352,7 +352,7 @@ FuncOp FuncOp::clone() {
   return clone(mapper);
 }
 
-void HandleOp::build(OpBuilder &builder, OperationState &state, EffType effect) {
+void HandleOp::build(OpBuilder &builder, OperationState &state, SignatureType effect) {
    // Store effect
    state.addAttribute(getEffectAttrName(state.name), TypeAttr::get(effect));
 
@@ -360,11 +360,11 @@ void HandleOp::build(OpBuilder &builder, OperationState &state, EffType effect) 
    auto handlerRegion = state.addRegion();
    Block *handlerEntryBlock = new Block();
    handlerRegion->push_back(handlerEntryBlock);
-   for (auto &arg : effect.getHandlerSignature().getInputs()) {
+   for (auto &arg : effect.getFn().getInputs()) {
       handlerEntryBlock->addArgument(arg, builder.getUnknownLoc()) ;
    }
 
-   auto bodyRegion = state.addRegion();
+   // auto bodyRegion = state.addRegion();
    // bodyRegion->t
    // han
    //

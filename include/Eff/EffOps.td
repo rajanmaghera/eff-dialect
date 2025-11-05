@@ -34,7 +34,7 @@ def CallOp : Eff_Op<"call",
   let arguments = (ins
     FlatSymbolRefAttr:$callee,
     Variadic<AnyType>:$operands,
-    TypedArrayAttrBase<TypeAttrOf<Eff_EffType>, "type array">:$effects,
+    TypedArrayAttrBase<TypeAttrOf<Eff_SigType>, "type array">:$effects,
     OptionalAttr<DictArrayAttr>:$arg_attrs,
     OptionalAttr<DictArrayAttr>:$res_attrs,
     UnitAttr:$no_inline
@@ -43,38 +43,38 @@ def CallOp : Eff_Op<"call",
   let results = (outs Variadic<AnyType>);
 
   let builders = [
-    OpBuilder<(ins "FuncOp":$callee, CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::EffType>", "{}">:$effects), [{
+    OpBuilder<(ins "FuncOp":$callee, CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::SignatureType>", "{}">:$effects), [{
       $_state.addOperands(operands);
       $_state.addAttribute("callee", SymbolRefAttr::get(callee));
       $_state.addTypes(callee.getFunctionType().getResults());
-      $_state.addAttribute(getEffectsAttrName($_state.name), $_builder.getArrayAttr(::llvm::map_to_vector<8>(effects, [](::mlir::eff::EffType v) -> ::mlir::Attribute { return ::mlir::TypeAttr::get(v); })));
+      $_state.addAttribute(getEffectsAttrName($_state.name), $_builder.getArrayAttr(::llvm::map_to_vector<8>(effects, [](::mlir::eff::SignatureType v) -> ::mlir::Attribute { return ::mlir::TypeAttr::get(v); })));
     }]>,
     OpBuilder<(ins "SymbolRefAttr":$callee, "TypeRange":$results,
-      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::EffType>", "{}">:$effects), [{
+      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::SignatureType>", "{}">:$effects), [{
       $_state.addOperands(operands);
       $_state.addAttribute("callee", callee);
       $_state.addTypes(results);
-      $_state.addAttribute(getEffectsAttrName($_state.name), $_builder.getArrayAttr(::llvm::map_to_vector<8>(effects, [](::mlir::eff::EffType v) -> ::mlir::Attribute { return ::mlir::TypeAttr::get(v); })));
+      $_state.addAttribute(getEffectsAttrName($_state.name), $_builder.getArrayAttr(::llvm::map_to_vector<8>(effects, [](::mlir::eff::SignatureType v) -> ::mlir::Attribute { return ::mlir::TypeAttr::get(v); })));
     }]>,
     OpBuilder<(ins "StringAttr":$callee, "TypeRange":$results,
-      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::EffType>", "{}">:$effects), [{
+      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::SignatureType>", "{}">:$effects), [{
       build($_builder, $_state, SymbolRefAttr::get(callee), results, operands, effects);
     }]>,
     OpBuilder<(ins "StringRef":$callee, "TypeRange":$results,
-      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::EffType>", "{}">:$effects), [{
+      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::SignatureType>", "{}">:$effects), [{
       build($_builder, $_state, StringAttr::get($_builder.getContext(), callee),
             results, operands, effects);
     }]>,
     OpBuilder<(ins "TypeRange":$results, "FlatSymbolRefAttr":$callee,
-      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::EffType>", "{}">:$effects), [{
+      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::SignatureType>", "{}">:$effects), [{
       build($_builder, $_state, callee, results, operands, effects);
     }]>,
     OpBuilder<(ins "TypeRange":$results, "StringAttr":$callee,
-      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::EffType>", "{}">:$effects), [{
+      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::SignatureType>", "{}">:$effects), [{
       build($_builder, $_state, callee, results, operands, effects);
     }]>,
     OpBuilder<(ins "TypeRange":$results, "StringRef":$callee,
-      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::EffType>", "{}">:$effects), [{
+      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::SignatureType>", "{}">:$effects), [{
       build($_builder, $_state, callee, results, operands, effects);
     }]>];
 
@@ -163,7 +163,7 @@ def DoEffectOp: Eff_Op<"do_effect",
 
   let extraClassDeclaration = [{
 
-    EffType getEffectType();
+    ::mlir::eff::SignatureType getEffectSig();
 
     /// Get the argument operands to the called function.
     operand_range getArgOperands() {
@@ -234,11 +234,11 @@ def HandleOp: Eff_Op<"handle", [
   let description = [{
   }];
 
-  let arguments = (ins TypeAttrOf<Eff_EffType>:$effect);
+  let arguments = (ins TypeAttrOf<Eff_SigType>:$effect);
   let regions = (region AnyRegion:$handler, AnyRegion:$body);
 
   let builders = [OpBuilder<(ins
-    "::mlir::eff::EffType":$effect)
+    "::mlir::eff::SignatureType":$effect)
   >];
   let extraClassDeclaration = [{
 
@@ -273,7 +273,7 @@ def FuncOp : Eff_Op<"func", [
 
   let arguments = (ins SymbolNameAttr:$sym_name,
                        TypeAttrOf<FunctionType>:$function_type,
-                       TypedArrayAttrBase<TypeAttrOf<Eff_EffType>, "type array">:$effects,
+                       TypedArrayAttrBase<TypeAttrOf<Eff_SigType>, "type array">:$effects,
                        OptionalAttr<StrAttr>:$sym_visibility,
                        OptionalAttr<DictArrayAttr>:$arg_attrs,
                        OptionalAttr<DictArrayAttr>:$res_attrs,
@@ -281,19 +281,19 @@ def FuncOp : Eff_Op<"func", [
   let regions = (region AnyRegion:$body);
 
   let builders = [OpBuilder<(ins
-    "StringRef":$name, "FunctionType":$type, CArg<"ArrayRef<::mlir::eff::EffType>", "{}">:$effects,
+    "StringRef":$name, "FunctionType":$type, CArg<"ArrayRef<::mlir::eff::SignatureType>", "{}">:$effects,
     CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
     CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)
   >];
   let extraClassDeclaration = [{
     static FuncOp create(Location location, StringRef name, FunctionType type,
-                         ArrayRef<::mlir::eff::EffType> effects = {},
+                         ArrayRef<::mlir::eff::SignatureType> effects = {},
                          ArrayRef<NamedAttribute> attrs = {});
     static FuncOp create(Location location, StringRef name, FunctionType type,
-                         ArrayRef<::mlir::eff::EffType> effects,
+                         ArrayRef<::mlir::eff::SignatureType> effects,
                          Operation::dialect_attr_range attrs);
     static FuncOp create(Location location, StringRef name, FunctionType type,
-                         ArrayRef<::mlir::eff::EffType> effects,
+                         ArrayRef<::mlir::eff::SignatureType> effects,
                          ArrayRef<NamedAttribute> attrs,
                          ArrayRef<DictionaryAttr> argAttrs);
     /// Create a deep copy of this function and all of its blocks, remapping any

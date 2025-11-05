@@ -8,8 +8,8 @@ module {
         eff.return %0 : i32
     }
 
-    // CHECK-LABEL: eff.func @eff_types(%arg0: !eff.effect<@custom : () -> i32>)
-    eff.func @eff_types(%arg0: !eff.effect<@custom : () -> i32>) attributes { effects = [] } {
+    // CHECK-LABEL: eff.func @eff_types(%arg0: !eff.sig<"custom" : () -> i32>)
+    eff.func @eff_types(%arg0: !eff.sig<"custom" : () -> i32>) attributes { effects = [] } {
         eff.return
     }
 }

@@ -32,29 +32,10 @@ void EffDialect::registerTypes() {
       >();
 }
 
-//===----------------------------------------------------------------------===//
-// Parser for effect types.
-//===----------------------------------------------------------------------===//
-
-Type EffDialect::parseType(DialectAsmParser &parser) const {
-    // Parse effect in form
-    // eff-type ::= `effect` `<` @name `:` func-type `>`
-
-    if (parser.parseKeyword("effect") || parser.parseLess())
-        return Type();
-
-    // Parse first name
-    StringAttr name1;
-    FunctionType func;
-    if (parser.parseSymbolName(name1) || parser.parseColonType(func) || parser.parseGreater()) {
-        parser.emitError(parser.getCurrentLocation(), "invalid definition of an effect type");
-        return Type();
-    }
-
-    return EffType::get(name1, func);
+LogicalResult SignatureType::verify(::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError, ::llvm::StringRef name, ::mlir::FunctionType fn) {
+    // Name must not be empty
+    if (name.empty())
+        return emitError() << "name cannot be empty";
+    return success();
 }
 
-void EffDialect::printType(Type type, DialectAsmPrinter &printer) const {
-    auto effType =  llvm::cast<EffType>(type);
-    printer << "effect<@" << effType.getHandlerName() << " : " << effType.getHandlerSignature() << ">";
-}

@@ -10,48 +10,9 @@
 #define EFF_EFFTYPES_H
 
 #include "mlir/IR/BuiltinTypes.h"
-
-namespace mlir {
-    class PatternRewriter;
-} // namespace mlir
-
-namespace mlir {
-    namespace eff {
-        class EffType;
-        namespace detail {
-            struct EffTypeStorage;
-        }
-    }
-}
-
+#include "mlir/IR/BuiltinAttributes.h"
 
 #define GET_TYPEDEF_CLASSES
 #include "Eff/EffOpsTypes.h.inc"
-
-namespace mlir {
-    namespace eff {
-
-        class EffType : public Type::TypeBase<EffType, Type, detail::EffTypeStorage> {
-
-        public:
-            using Base::Base;
-
-            static EffType get(StringRef name, FunctionType funcSig);
-
-            static LogicalResult verifyConstructionInvariants(
-              Location loc, StringRef name, FunctionType funcSig
-            );
-
-            StringRef getHandlerName();
-
-            FunctionType getHandlerSignature();
-
-            static constexpr StringLiteral name = "eff.effect";
-
-        };
-    }
-}
-
-
 
 #endif // EFF_EFFTYPES_H
