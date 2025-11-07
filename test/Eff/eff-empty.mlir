@@ -1,5 +1,4 @@
-// RUN: eff-opt %s | eff-opt | FileCheck %s
-// XFAIL: *
+// RUN: not eff-opt %s 2>&1 | FileCheck %s
 
 module {
     // CHECK: error: name cannot be empty

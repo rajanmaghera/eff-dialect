@@ -59,19 +59,6 @@
       }
     };
 
-
-    struct ConstantOpLowering : public OpConversionPattern<eff::ConstantOp> {
-      using OpConversionPattern<eff::ConstantOp>::OpConversionPattern;
-      LogicalResult
-      matchAndRewrite(eff::ConstantOp op, OpAdaptor adaptor,
-        ConversionPatternRewriter &rewriter
-        ) const final {
-        auto constant = mlir::func::ConstantOp::create(rewriter, op.getLoc(), op->getResultTypes(), op.getValue());
-        rewriter.replaceOp(op, constant);
-        return success();
-      }
-    };
-
     struct ReturnOpLowering : public OpConversionPattern<eff::ReturnOp> {
       using OpConversionPattern<eff::ReturnOp>::OpConversionPattern;
       LogicalResult
@@ -107,7 +94,7 @@ namespace mlir::eff {
           target.addIllegalDialect<eff::EffDialect>();
 
           RewritePatternSet patterns(&getContext());
-          patterns.add<CallOpLowering, ConstantOpLowering, ReturnOpLowering, FuncOpLowering>(&getContext());
+          patterns.add<CallOpLowering, ReturnOpLowering, FuncOpLowering>(&getContext());
 
 
           if (failed(

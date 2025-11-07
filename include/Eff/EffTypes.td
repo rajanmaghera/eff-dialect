@@ -47,4 +47,8 @@ def Eff_SigType : EffDialect_Type<"Signature", "sig"> {
    let skipDefaultBuilders = 1;
 }
 
+def Eff_ContType : EffDialect_Type<"Continuation", "cont"> {
+    let summary = "Effect continuation type";
+}
+
 #endif // EFF_TYPES

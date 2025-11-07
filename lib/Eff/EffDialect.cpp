@@ -47,13 +47,3 @@ void EffDialect::initialize() {
   declarePromisedInterfaces<bufferization::BufferizableOpInterface, CallOp,
                             FuncOp, ReturnOp, DoEffectOp>();
 }
-
-/// Materialize a single constant operation from a given attribute value with
-/// the desired resultant type.
-Operation *EffDialect::materializeConstant(OpBuilder &builder, Attribute value,
-                                            Type type, Location loc) {
-  if (ConstantOp::isBuildableWith(value, type))
-    return ConstantOp::create(builder, loc, type,
-                              llvm::cast<FlatSymbolRefAttr>(value));
-  return nullptr;
-}

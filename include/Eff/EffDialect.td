@@ -27,7 +27,6 @@ def Eff_Dialect : Dialect {
     let extraClassDeclaration = [{
         void registerTypes();
     }];
-    let hasConstantMaterializer = 1;
 }
 
 //===----------------------------------------------------------------------===//

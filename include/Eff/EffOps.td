@@ -10,6 +10,7 @@
 #define EFF_OPS
 
 include "Eff/EffTypes.td"
+include "mlir/IR/AttrTypeBase.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/EnumAttr.td"
@@ -107,6 +108,8 @@ def CallOp : Eff_Op<"call",
   let assemblyFormat = [{
     $callee `(` $operands `)` attr-dict `:` functional-type($operands, results)
   }];
+
+  let hasVerifier = 1;
 }
 
 
@@ -123,7 +126,7 @@ def DoEffectOp: Eff_Op<"do_effect",
   }];
 
   let arguments = (ins
-    FlatSymbolRefAttr:$callee,
+    StrAttr:$callee,
     Variadic<AnyType>:$operands,
     OptionalAttr<DictArrayAttr>:$arg_attrs,
     OptionalAttr<DictArrayAttr>:$res_attrs,
@@ -195,33 +198,6 @@ def DoEffectOp: Eff_Op<"do_effect",
   let hasVerifier = 1;
 }
 
-//===----------------------------------------------------------------------===//
-// ConstantOp
-//===----------------------------------------------------------------------===//
-
-def ConstantOp : Eff_Op<"constant",
-    [ConstantLike, Pure,
-     DeclareOpInterfaceMethods<SymbolUserOpInterface>,
-     DeclareOpInterfaceMethods<OpAsmOpInterface, ["getAsmResultNames"]>]> {
-  let summary = "constant";
-  let description = [{
-    The `eff.constant` operation produces an SSA value from a symbol reference
-    to a `eff.func` operation
-  }];
-
-  let arguments = (ins FlatSymbolRefAttr:$value);
-  let results = (outs AnyType);
-  let assemblyFormat = "attr-dict $value `:` type(results)";
-
-  let extraClassDeclaration = [{
-    /// Returns true if a constant operation can be built with the given value
-    /// and result type.
-    static bool isBuildableWith(Attribute value, Type type);
-  }];
-
-  let hasFolder = 1;
-}
-
 
 //===----------------------------------------------------------------------===//
 // HandleOp
@@ -236,6 +212,7 @@ def HandleOp: Eff_Op<"handle", [
 
   let arguments = (ins TypeAttrOf<Eff_SigType>:$effect);
   let regions = (region AnyRegion:$handler, AnyRegion:$body);
+  let results = (outs Variadic<AnyType>:$results);
 
   let builders = [OpBuilder<(ins
     "::mlir::eff::SignatureType":$effect)
@@ -360,6 +337,52 @@ def ReturnOp : Eff_Op<"return", [Pure, HasParent<"FuncOp">,
 
   let arguments = (ins Variadic<AnyType>:$operands);
 
+  let builders = [OpBuilder<(ins), [{
+    build($_builder, $_state, {});
+  }]>];
+
+  let assemblyFormat = "attr-dict ($operands^ `:` type($operands))?";
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// ContinueOp
+//===----------------------------------------------------------------------===//
+
+def ContinueOp: Eff_Op<"continue", [Pure, HasParent<"HandleOp">,
+                                MemRefsNormalizable, ReturnLike, Terminator]> {
+  let summary = "Effect handler continuation operation";
+  let description = [{
+    The `eff.continue` operation represents a continuation back into the function
+    body.
+  }];
+
+  let arguments = (ins Variadic<AnyType>:$operands);
+
+    // TODO remove?
+  let builders = [OpBuilder<(ins), [{
+    build($_builder, $_state, {});
+  }]>];
+
+  let assemblyFormat = "attr-dict ($operands^ `:` type($operands))?";
+  let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// YieldOp
+//===----------------------------------------------------------------------===//
+
+def YieldOp: Eff_Op<"yield", [Pure, HasParent<"HandleOp">,
+                                MemRefsNormalizable, ReturnLike, Terminator]> {
+  let summary = "Effect handler yield operation";
+  let description = [{
+    The `eff.yield` operation yields control from a handler to outside
+    of the block.
+  }];
+
+  let arguments = (ins Variadic<AnyType>:$operands);
+
+    // TODO remove?
   let builders = [OpBuilder<(ins), [{
     build($_builder, $_state, {});
   }]>];

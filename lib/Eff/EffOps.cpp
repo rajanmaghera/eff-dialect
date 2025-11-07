@@ -7,6 +7,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "Eff/EffOps.h"
+
+#include <functional>
+
 #include "Eff/EffDialect.h"
 
 #include "mlir/Conversion/ConvertToEmitC/ToEmitCInterface.h"
@@ -33,6 +36,8 @@ using namespace mlir::eff;
 //===----------------------------------------------------------------------===//
 // CallOp
 //===----------------------------------------------------------------------===//
+
+// TODO: move to symbol table version?
 
 LogicalResult CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
   // Check that the callee attribute was specified.
@@ -65,47 +70,80 @@ LogicalResult CallOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
       diag.attachNote() << "function result types: " << fnType.getResults();
       return diag;
     }
-   // Verify that this call has the same effects written down
-   // A call may have more effects than the callee, but not the other way around
-   auto callEffs = (*this)->getAttrOfType<ArrayAttr>("effects");
-   if (!callEffs)
-     return emitOpError("requires a 'effects' attribute attribute");
 
-   for (auto &x : fn.getEffects()) {
-     // Every effect on the function definition must appear on this call too
-     auto fnEff = llvm::dyn_cast<TypeAttr>(x).getValue();
-     assert(fnEff);
+  // Verify that each call has effects attribute
+  auto callEffs = (*this)->getAttrOfType<ArrayAttr>("effects");
+  if (!callEffs)
+    return emitOpError("requires a 'effects' attribute attribute");
 
-     bool found = false;
-     for (auto &y : callEffs) {
-       auto callEff = llvm::dyn_cast<TypeAttr>(y).getValue();
-       if (fnEff == callEff) {
-         found = true;
-         break;
-       }
-     }
-     if (!found)
-       return emitOpError("calls to a function with the effect ") << fnEff << " but the call does not specify this effect";
-   }
+  // Verify that the caller has all effects that the callee has
+  for (auto &x : fn.getEffects()) {
+    // Every effect on the function definition must appear on this call too
+    auto fnEff = llvm::dyn_cast<TypeAttr>(x).getValue();
+    assert(fnEff);
 
-   // Every effect here must be handled by parent scope
-   auto function = cast<FuncOp>((*this)->getParentOp());
-   for (auto &thiscalleffect : callEffs) {
-     auto thiseffect = llvm::dyn_cast<TypeAttr>(thiscalleffect).getValue();
-     // TODO: deal with scopes with handlers
-     // This effect must exist in the effect signature of the function
-     bool found = false;
-     for (auto &x : function.getEffects()) {
-       auto y = llvm::dyn_cast<TypeAttr>(x).getValue();
-       if (y == thiseffect) {
-         found = true;
-         break;
-       }
-     }
-     if (!found) {
-       return emitError() << "this effect does not exist in the signature of the defining function";
-     }
-   }
+    bool found = false;
+    for (auto &y : callEffs) {
+      auto callEff = llvm::dyn_cast<TypeAttr>(y).getValue();
+      if (fnEff == callEff) {
+        found = true;
+        break;
+      }
+    }
+    if (!found)
+      return emitOpError("calls to a function with the effect ") << fnEff << " but the call does not specify this effect";
+  }
+
+  return success();
+}
+
+LogicalResult CallOp::verify() {
+  // Verify that each call has effects attribute
+  auto callEffs = (*this)->getAttrOfType<ArrayAttr>("effects");
+  if (!callEffs)
+    return emitOpError("requires a 'effects' attribute attribute");
+
+  // COND: Each effect of this call needs to be handled properly.
+  for (auto &x : callEffs) {
+    auto callEff = llvm::dyn_cast<SignatureType>(llvm::dyn_cast<TypeAttr>(x).getValue());
+    assert(callEff);
+
+    // Find the nearest parent handler
+    bool found = false;
+    auto handleOp = (*this)->getParentOfType<HandleOp>();
+    while (handleOp && !found) {
+      // Check what effect is handled by this handler
+      if (handleOp.getEffect() == callEff) {
+        found = true;
+        // TODO: debug print?
+        break;
+      }
+      // If not matching, then find the nearest handleOp and continue
+      handleOp = handleOp->getParentOfType<HandleOp>();
+    }
+    if (found)
+      continue;
+
+    // If handlers don't handle this, then the function signature should
+    auto funcOp = (*this)->getParentOfType<FuncOp>();
+    assert(funcOp); // this should be in some function
+
+    // On this function, check its effects
+    for (auto &y: funcOp.getEffects()) {
+      auto funcEff= llvm::dyn_cast<SignatureType>(llvm::dyn_cast<TypeAttr>(y).getValue());
+      assert(funcEff);
+      if (funcEff == callEff) {
+        found = true;
+        break;
+      }
+    }
+
+    // If not found, this effect is not handled by a handler or on the function
+    // signature
+    if (!found)
+      return emitOpError("effect ") << callEff << " is not handled or in function's signature";
+
+  }
 
   return success();
 }
@@ -126,25 +164,48 @@ SignatureType DoEffectOp::getEffectSig() {
 
 
 LogicalResult DoEffectOp::verify() {
-   auto function = cast<FuncOp>((*this)->getParentOp());
-   auto thiseffect = getEffectSig();
 
-   // TODO: deal with scopes with handlers
-   // This effect must exist in the effect signature of the function
-   bool found = false;
-   for (auto &x : function.getEffects()) {
-     auto y = llvm::dyn_cast<TypeAttr>(x).getValue();
-     if (y == thiseffect) {
-       found = true;
-       break;
-     }
-   }
-   if (!found) {
-     return emitError() << "this effect does not exist in the signature of the defining function";
-   }
+  // Get the effect signature being performed
+  auto eff = getEffectSig();
 
-   return success();
- }
+    // Find the nearest parent handler
+    bool found = false;
+    auto handleOp = (*this)->getParentOfType<HandleOp>();
+    while (handleOp && !found) {
+      // Check what effect is handled by this handler
+      if (handleOp.getEffect() == eff) {
+        found = true;
+        // TODO: debug print?
+        break;
+      }
+      // If not matching, then find the nearest handleOp and continue
+      handleOp = handleOp->getParentOfType<HandleOp>();
+    }
+    if (found)
+      return success();
+
+    // If handlers don't handle this, then the function signature should
+    auto funcOp = (*this)->getParentOfType<FuncOp>();
+    assert(funcOp); // this should be in some function
+
+    // On this function, check its effects
+    for (auto &y: funcOp.getEffects()) {
+      auto funcEff= llvm::dyn_cast<SignatureType>(llvm::dyn_cast<TypeAttr>(y).getValue());
+      assert(funcEff);
+      if (funcEff == eff) {
+        found = true;
+        break;
+      }
+    }
+
+    // If not found, this effect is not handled by a handler or on the function
+    // signature
+    if (!found)
+      return emitOpError("effect ") << eff << " is not handled or in function's signature";
+
+  return success();
+  }
+
 
 LogicalResult DoEffectOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
    // TODO: check that effect type exists somewhere?
@@ -181,40 +242,6 @@ LogicalResult DoEffectOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
    return success();
  }
 
-//===----------------------------------------------------------------------===//
-// ConstantOp
-//===----------------------------------------------------------------------===//
-
-LogicalResult ConstantOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
-  StringRef fnName = getValue();
-  Type type = getType();
-
-  // Try to find the referenced function.
-  auto fn = symbolTable.lookupNearestSymbolFrom<FuncOp>(
-      this->getOperation(), StringAttr::get(getContext(), fnName));
-  if (!fn)
-    return emitOpError() << "reference to undefined function '" << fnName
-                         << "'";
-
-  // Check that the referenced function has the correct type.
-  if (fn.getFunctionType() != type)
-    return emitOpError("reference to function with mismatched type");
-
-  return success();
-}
-
-OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) {
-  return getValueAttr();
-}
-
-void ConstantOp::getAsmResultNames(
-    function_ref<void(Value, StringRef)> setNameFn) {
-  setNameFn(getResult(), "f");
-}
-
-bool ConstantOp::isBuildableWith(Attribute value, Type type) {
-  return llvm::isa<FlatSymbolRefAttr>(value) && llvm::isa<FunctionType>(type);
-}
 
 //===----------------------------------------------------------------------===//
 // FuncOp
@@ -360,8 +387,11 @@ void HandleOp::build(OpBuilder &builder, OperationState &state, SignatureType ef
    auto handlerRegion = state.addRegion();
    Block *handlerEntryBlock = new Block();
    handlerRegion->push_back(handlerEntryBlock);
+   // add continuation as argument
+   ContinuationType contTy = ContinuationType::get(builder.getContext());
+   handlerEntryBlock->addArgument(contTy, state.location);
    for (auto &arg : effect.getFn().getInputs()) {
-      handlerEntryBlock->addArgument(arg, builder.getUnknownLoc()) ;
+      handlerEntryBlock->addArgument(arg, state.location) ;
    }
 
    // auto bodyRegion = state.addRegion();
@@ -404,6 +434,66 @@ LogicalResult ReturnOp::verify() {
   return success();
 }
 
+//===----------------------------------------------------------------------===//
+// ContinueOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult ContinueOp::verify() {
+  auto handler = cast<HandleOp>((*this)->getParentOp());
+  const auto &effResults = handler.getEffect().getFn().getResults();
+
+  // The continue op should have 1 + result types operand values.
+  if (getNumOperands() != effResults.size() + 1)
+    return emitOpError("has ")
+           << getNumOperands() << " operands, but enclosing effect (\""
+           << handler.getEffect().getName() << "\") returns " << effResults.size() << " (extra operand for continuation needed)";
+
+  // The first value should be a continuation type
+  if (!isa<ContinuationType>(getOperand(0).getType())) {
+     return emitOpError() << "The first operand must be a continuation type.";
+  }
+
+  // TODO: this implementation forces each continue's continuation to come from
+  //       the most immediate parent handler that defines it.
+  // The first value should be exactly the same as the initial argument
+  if (getOperand(0) != handler.getHandler().getArgument(0)) {
+    return emitError() << "The continuation must originate from this op's immediate parent.";
+  }
+
+  // The rest of the arguments should match the effect type signature
+  for (unsigned i = 0, e = effResults.size(); i != e; ++i)
+    if (getOperand(i+1).getType() != effResults[i])
+      return emitError() << "type of continuation operand " << i << " ("
+                         << getOperand(i+1).getType()
+                         << ") doesn't match function result type ("
+                         << effResults[i] << ")"
+                         << " in effect \"" << handler.getEffect().getName() << "\"";
+
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
+// YieldOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult YieldOp::verify() {
+  auto handler = cast<HandleOp>((*this)->getParentOp());
+
+  // The operand number and types must match the results of the handler.
+  const auto &results = handler.getResults().getTypes();
+  if (getNumOperands() != results.size())
+    return emitOpError("has ")
+           << getNumOperands() << " operands, but handler returns " << results.size();
+
+  for (unsigned i = 0, e = results.size(); i != e; ++i)
+    if (getOperand(i).getType() != results[i])
+      return emitError() << "type of return operand " << i << " ("
+                         << getOperand(i).getType()
+                         << ") doesn't match handler result type ("
+                         << results[i] << ")";
+
+  return success();
+}
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
