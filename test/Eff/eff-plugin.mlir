@@ -1,9 +1,12 @@
 // UNSUPPORTED: system-windows
-// RUN: mlir-opt %s --load-dialect-plugin=%eff_libs/EffPlugin%shlibext --pass-pipeline="builtin.module(eff-lower-to-func)" | FileCheck %s
+// RUN: mlir-opt %s --load-dialect-plugin=%eff_libs/EffPlugin%shlibext --pass-pipeline="builtin.module()" | FileCheck %s
 
 module {
-  // CHECK-LABEL: func @eff_types(%arg0: !eff.sig<"custom" : () -> i32>)
-  func.func @eff_types(%arg0: !eff.sig<"custom" : () -> i32>) {
-    return
-  }
+    // CHECK-LABEL: eff.define @custom : () -> i32
+    eff.define @custom : () -> i32
+
+    // CHECK-LABEL: eff.func @eff_types() attributes {effects = [@custom]}
+    eff.func @eff_types() attributes {effects = [@custom]} {
+        eff.return
+    }
 }

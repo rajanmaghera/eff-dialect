@@ -35,7 +35,6 @@ def CallOp : Eff_Op<"call",
   let arguments = (ins
     FlatSymbolRefAttr:$callee,
     Variadic<AnyType>:$operands,
-    TypedArrayAttrBase<TypeAttrOf<Eff_SigType>, "type array">:$effects,
     OptionalAttr<DictArrayAttr>:$arg_attrs,
     OptionalAttr<DictArrayAttr>:$res_attrs,
     UnitAttr:$no_inline
@@ -44,39 +43,37 @@ def CallOp : Eff_Op<"call",
   let results = (outs Variadic<AnyType>);
 
   let builders = [
-    OpBuilder<(ins "FuncOp":$callee, CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::SignatureType>", "{}">:$effects), [{
+    OpBuilder<(ins "FuncOp":$callee, CArg<"ValueRange", "{}">:$operands), [{
       $_state.addOperands(operands);
       $_state.addAttribute("callee", SymbolRefAttr::get(callee));
       $_state.addTypes(callee.getFunctionType().getResults());
-      $_state.addAttribute(getEffectsAttrName($_state.name), $_builder.getArrayAttr(::llvm::map_to_vector<8>(effects, [](::mlir::eff::SignatureType v) -> ::mlir::Attribute { return ::mlir::TypeAttr::get(v); })));
     }]>,
     OpBuilder<(ins "SymbolRefAttr":$callee, "TypeRange":$results,
-      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::SignatureType>", "{}">:$effects), [{
+      CArg<"ValueRange", "{}">:$operands), [{
       $_state.addOperands(operands);
       $_state.addAttribute("callee", callee);
       $_state.addTypes(results);
-      $_state.addAttribute(getEffectsAttrName($_state.name), $_builder.getArrayAttr(::llvm::map_to_vector<8>(effects, [](::mlir::eff::SignatureType v) -> ::mlir::Attribute { return ::mlir::TypeAttr::get(v); })));
     }]>,
     OpBuilder<(ins "StringAttr":$callee, "TypeRange":$results,
-      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::SignatureType>", "{}">:$effects), [{
-      build($_builder, $_state, SymbolRefAttr::get(callee), results, operands, effects);
+      CArg<"ValueRange", "{}">:$operands), [{
+      build($_builder, $_state, SymbolRefAttr::get(callee), results, operands);
     }]>,
     OpBuilder<(ins "StringRef":$callee, "TypeRange":$results,
-      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::SignatureType>", "{}">:$effects), [{
+      CArg<"ValueRange", "{}">:$operands), [{
       build($_builder, $_state, StringAttr::get($_builder.getContext(), callee),
-            results, operands, effects);
+            results, operands);
     }]>,
     OpBuilder<(ins "TypeRange":$results, "FlatSymbolRefAttr":$callee,
-      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::SignatureType>", "{}">:$effects), [{
-      build($_builder, $_state, callee, results, operands, effects);
+      CArg<"ValueRange", "{}">:$operands), [{
+      build($_builder, $_state, callee, results, operands);
     }]>,
     OpBuilder<(ins "TypeRange":$results, "StringAttr":$callee,
-      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::SignatureType>", "{}">:$effects), [{
-      build($_builder, $_state, callee, results, operands, effects);
+      CArg<"ValueRange", "{}">:$operands), [{
+      build($_builder, $_state, callee, results, operands);
     }]>,
     OpBuilder<(ins "TypeRange":$results, "StringRef":$callee,
-      CArg<"ValueRange", "{}">:$operands, CArg<"ArrayRef<::mlir::eff::SignatureType>", "{}">:$effects), [{
-      build($_builder, $_state, callee, results, operands, effects);
+      CArg<"ValueRange", "{}">:$operands), [{
+      build($_builder, $_state, callee, results, operands);
     }]>];
 
   let extraClassDeclaration = [{
@@ -126,7 +123,7 @@ def DoEffectOp: Eff_Op<"do_effect",
   }];
 
   let arguments = (ins
-    StrAttr:$callee,
+    FlatSymbolRefAttr:$callee,
     Variadic<AnyType>:$operands,
     OptionalAttr<DictArrayAttr>:$arg_attrs,
     OptionalAttr<DictArrayAttr>:$res_attrs,
@@ -166,8 +163,6 @@ def DoEffectOp: Eff_Op<"do_effect",
 
   let extraClassDeclaration = [{
 
-    ::mlir::eff::SignatureType getEffectSig();
-
     /// Get the argument operands to the called function.
     operand_range getArgOperands() {
       return {arg_operand_begin(), arg_operand_end()};
@@ -204,23 +199,30 @@ def DoEffectOp: Eff_Op<"do_effect",
 //===----------------------------------------------------------------------===//
 
 def HandleOp: Eff_Op<"handle", [
-  AffineScope, AutomaticAllocationScope, NoTerminator
+  AffineScope, AutomaticAllocationScope, NoTerminator,
+   DeclareOpInterfaceMethods<SymbolUserOpInterface>
 ]> {
   let summary = "A scoped effect handler for a single effect";
   let description = [{
   }];
 
-  let arguments = (ins TypeAttrOf<Eff_SigType>:$effect);
+  let arguments = (ins SymbolNameAttr:$sym_name,
+                        TypeAttrOf<FunctionType>:$eff_sig,
+                       OptionalAttr<DictArrayAttr>:$arg_attrs,
+                       OptionalAttr<DictArrayAttr>:$res_attrs);
+
   let regions = (region AnyRegion:$handler, AnyRegion:$body);
   let results = (outs Variadic<AnyType>:$results);
 
   let builders = [OpBuilder<(ins
-    "::mlir::eff::SignatureType":$effect)
+    "SymbolRefAttr":$sym_name, "FunctionType":$eff_sig,
+    CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
+    CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)
   >];
   let extraClassDeclaration = [{
-
   }];
-  let hasCustomAssemblyFormat = 0;
+  let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -229,7 +231,7 @@ def HandleOp: Eff_Op<"handle", [
 
 def FuncOp : Eff_Op<"func", [
   AffineScope, AutomaticAllocationScope,
-  FunctionOpInterface, IsolatedFromAbove, OpAsmOpInterface
+  FunctionOpInterface, IsolatedFromAbove, OpAsmOpInterface,
 ]> {
   let summary = "An operation with a name containing a single `SSACFG` region";
   let description = [{
@@ -250,7 +252,6 @@ def FuncOp : Eff_Op<"func", [
 
   let arguments = (ins SymbolNameAttr:$sym_name,
                        TypeAttrOf<FunctionType>:$function_type,
-                       TypedArrayAttrBase<TypeAttrOf<Eff_SigType>, "type array">:$effects,
                        OptionalAttr<StrAttr>:$sym_visibility,
                        OptionalAttr<DictArrayAttr>:$arg_attrs,
                        OptionalAttr<DictArrayAttr>:$res_attrs,
@@ -258,19 +259,16 @@ def FuncOp : Eff_Op<"func", [
   let regions = (region AnyRegion:$body);
 
   let builders = [OpBuilder<(ins
-    "StringRef":$name, "FunctionType":$type, CArg<"ArrayRef<::mlir::eff::SignatureType>", "{}">:$effects,
+    "StringRef":$name, "FunctionType":$type,
     CArg<"ArrayRef<NamedAttribute>", "{}">:$attrs,
     CArg<"ArrayRef<DictionaryAttr>", "{}">:$argAttrs)
   >];
   let extraClassDeclaration = [{
     static FuncOp create(Location location, StringRef name, FunctionType type,
-                         ArrayRef<::mlir::eff::SignatureType> effects = {},
                          ArrayRef<NamedAttribute> attrs = {});
     static FuncOp create(Location location, StringRef name, FunctionType type,
-                         ArrayRef<::mlir::eff::SignatureType> effects,
                          Operation::dialect_attr_range attrs);
     static FuncOp create(Location location, StringRef name, FunctionType type,
-                         ArrayRef<::mlir::eff::SignatureType> effects,
                          ArrayRef<NamedAttribute> attrs,
                          ArrayRef<DictionaryAttr> argAttrs);
     /// Create a deep copy of this function and all of its blocks, remapping any
@@ -349,8 +347,10 @@ def ReturnOp : Eff_Op<"return", [Pure, HasParent<"FuncOp">,
 // ContinueOp
 //===----------------------------------------------------------------------===//
 
+// TODO: remove need for SymbolUserOpInterface here, instead enforce symbol/type on continuation
+
 def ContinueOp: Eff_Op<"continue", [Pure, HasParent<"HandleOp">,
-                                MemRefsNormalizable, ReturnLike, Terminator]> {
+                                MemRefsNormalizable, DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
   let summary = "Effect handler continuation operation";
   let description = [{
     The `eff.continue` operation represents a continuation back into the function
@@ -358,13 +358,16 @@ def ContinueOp: Eff_Op<"continue", [Pure, HasParent<"HandleOp">,
   }];
 
   let arguments = (ins Variadic<AnyType>:$operands);
+  let results = (outs Variadic<AnyType>:$results);
 
-    // TODO remove?
-  let builders = [OpBuilder<(ins), [{
-    build($_builder, $_state, {});
-  }]>];
+//    // TODO remove?
+//  let builders = [OpBuilder<(ins), [{
+//    build($_builder, $_state, {});
+//  }]>];
 
-  let assemblyFormat = "attr-dict ($operands^ `:` type($operands))?";
+  let assemblyFormat = [{
+    $operands attr-dict `:` functional-type($operands, $results)
+  }];
   let hasVerifier = 1;
 }
 
@@ -389,6 +392,34 @@ def YieldOp: Eff_Op<"yield", [Pure, HasParent<"HandleOp">,
 
   let assemblyFormat = "attr-dict ($operands^ `:` type($operands))?";
   let hasVerifier = 1;
+}
+
+//===----------------------------------------------------------------------===//
+// DefineOp
+//===----------------------------------------------------------------------===//
+
+def DefineOp: Eff_Op<"define", [
+  IsolatedFromAbove, Symbol
+]> {
+  let summary = "A definition of an effect signature";
+  let description = [{
+    Effect signatures are defined as MLIR symbols.
+  }];
+
+  let arguments = (ins SymbolNameAttr:$sym_name,
+                       TypeAttrOf<FunctionType>:$function_type);
+
+  let extraClassDeclaration = [{
+    static DefineOp create(Location location, StringRef name, FunctionType type);
+
+    //===------------------------------------------------------------------===//
+    // SymbolOpInterface Methods
+    //===------------------------------------------------------------------===//
+
+    bool isDeclaration() { return false; }
+  }];
+
+  let assemblyFormat = "$sym_name attr-dict `:` $function_type";
 }
 
 #endif // EFF_OPS

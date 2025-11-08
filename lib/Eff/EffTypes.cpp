@@ -32,10 +32,4 @@ void EffDialect::registerTypes() {
       >();
 }
 
-LogicalResult SignatureType::verify(::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError, ::llvm::StringRef name, ::mlir::FunctionType fn) {
-    // Name must not be empty
-    if (name.empty())
-        return emitError() << "name cannot be empty";
-    return success();
-}
 
