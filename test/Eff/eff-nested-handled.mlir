@@ -17,7 +17,7 @@ module {
     eff.handle @io.modify(%arg4: !eff.cont) {
     } {
         %0 = arith.constant 42 : i64
-        eff.do_effect @io.something(%0) : (i64) -> ()
+        eff.do @io.something(%0) : (i64) -> ()
         eff.yield
     }
         eff.yield
@@ -40,7 +40,7 @@ module {
     eff.handle @io.modify(%arg4: !eff.cont) {
     } {
         %0 = arith.constant 42 : i64
-        eff.do_effect @io.something(%0) : (i64) -> ()
+        eff.do @io.something(%0) : (i64) -> ()
         eff.yield
     }
         eff.yield

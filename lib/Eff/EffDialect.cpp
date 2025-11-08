@@ -45,5 +45,5 @@ void EffDialect::initialize() {
   declarePromisedInterface<DialectInlinerInterface, EffDialect>();
   declarePromisedInterface<ConvertToLLVMPatternInterface, EffDialect>();
   declarePromisedInterfaces<bufferization::BufferizableOpInterface, CallOp,
-                            FuncOp, ReturnOp, DoEffectOp>();
+                            FuncOp, ReturnOp, DoOp>();
 }

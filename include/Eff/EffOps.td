@@ -111,10 +111,10 @@ def CallOp : Eff_Op<"call",
 
 
 //===----------------------------------------------------------------------===//
-// DoEffectOp
+// DoOp
 //===----------------------------------------------------------------------===//
 
-def DoEffectOp: Eff_Op<"do_effect",
+def DoOp: Eff_Op<"do",
     [CallOpInterface, MemRefsNormalizable,
      DeclareOpInterfaceMethods<SymbolUserOpInterface>]> {
   let summary = "do effect operation";

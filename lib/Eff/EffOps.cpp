@@ -152,10 +152,10 @@ FunctionType CallOp::getCalleeType() {
 
 
 //===----------------------------------------------------------------------===//
-// DoEffect
+// Do
 //===----------------------------------------------------------------------===//
 
-LogicalResult DoEffectOp::verify() {
+LogicalResult DoOp::verify() {
 
   // Get symbol
   auto eff = getCallee();
@@ -198,7 +198,7 @@ LogicalResult DoEffectOp::verify() {
   }
 
 
-LogicalResult DoEffectOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
+LogicalResult DoOp::verifySymbolUses(SymbolTableCollection &symbolTable) {
 
 
    return success();

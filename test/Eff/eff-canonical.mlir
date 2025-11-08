@@ -7,7 +7,7 @@ module {
     // CHECK-LABEL: eff.func @thefunc(%arg0: i64, %arg1: i64) -> i64 attributes {effects = [@io.merge]}
   eff.func @thefunc(%arg0: i64, %arg1: i64) -> i64 attributes {effects = [@io.merge]} {
     %0 = arith.addi %arg0, %arg1 : i64
-    %1 = do_effect @io.merge(%0, %0) : (i64, i64) -> i64
+    %1 = do @io.merge(%0, %0) : (i64, i64) -> i64
     %2 = arith.addi %0, %1 : i64
     %c42_i64 = arith.constant 42 : i64
     %3 = arith.addi %2, %c42_i64 : i64

@@ -17,8 +17,8 @@ module {
     eff.handle @io.modify(%arg4: !eff.cont) {
     } {
         %0 = arith.constant 42 : i64
-        // CHECK-LABEL: error: 'eff.do_effect' op effect io.something is not handled or in function's signature
-        eff.do_effect @io.something(%0) : (i64) -> ()
+        // CHECK-LABEL: error: 'eff.do' op effect io.something is not handled or in function's signature
+        eff.do @io.something(%0) : (i64) -> ()
         eff.yield
     }
         eff.yield
