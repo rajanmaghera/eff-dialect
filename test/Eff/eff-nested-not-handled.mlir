@@ -9,12 +9,16 @@ module {
 
   eff.func @func1() attributes {effects = [@io.reader]} {
     eff.handle @io.modify(%arg1: !eff.cont) {
+        eff.yield
     } {
     eff.handle @io.reader(%arg2: !eff.cont, %arg10: i64) {
+        eff.yield
     } {
     eff.handle @io.modify(%arg3: !eff.cont) {
+        eff.yield
     } {
     eff.handle @io.modify(%arg4: !eff.cont) {
+        eff.yield
     } {
         %0 = arith.constant 42 : i64
         // CHECK-LABEL: error: 'eff.do' op effect io.something is not handled or in function's signature

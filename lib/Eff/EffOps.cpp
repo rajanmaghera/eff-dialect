@@ -334,6 +334,26 @@ FuncOp FuncOp::clone() {
 }
 
 LogicalResult HandleOp::verify() {
+  // Both regions must not be empty (contain yield at least)
+  // Both regions should terminate with a yield
+
+  // Note: the type of yield is handled in the verification method of the yield
+  // TODO: supporting return as a terminator?
+
+  auto &handlerRegion = getHandler();
+  if (handlerRegion.empty() || handlerRegion.back().empty())
+    return emitOpError("handler region cannot be empty");
+
+  if (!isa<YieldOp>(handlerRegion.back().back()))
+    return emitOpError("expected 'eff.yield' as terminator in handler region");
+
+  auto &bodyRegion = getBody();
+  if (bodyRegion.empty() || bodyRegion.back().empty())
+    return emitOpError("body region cannot be empty");
+
+  if (!isa<YieldOp>(bodyRegion.back().back()))
+    return emitOpError("expected 'eff.yield' as terminator in body region");
+
   return success();
 }
 
@@ -383,7 +403,7 @@ void HandleOp::build(OpBuilder &builder, OperationState &state, SymbolRefAttr na
   state.attributes.append(attrs.begin(), attrs.end());
 
   // Add handler region
-  auto handlerRegion = state.addRegion();
+  state.addRegion();
   // Handler region should have one more arg than effect type
   assert(type.getNumInputs() + 1 == argAttrs.size());
 
@@ -404,7 +424,7 @@ void HandleOp::build(OpBuilder &builder, OperationState &state, SymbolRefAttr na
     state.addAttribute(getArgAttrsAttrName(state.name), getArrayAttr(argAttrs));
 
   // Add body region
-  auto bodyRegion = state.addRegion();
+  state.addRegion();
 
 }
 
@@ -460,11 +480,6 @@ ParseResult HandleOp::parse(OpAsmParser &parser, OperationState &result) {
 
     if (listRes)
       return failure();
-
-
-  // DEBUG: check return type
-  auto resultattrsize= resultAttrs.size();
-  auto resulttypessize = resultTypes.size();
 
   // Get argument types from entry args
   SmallVector<Type> argTypes;
@@ -554,8 +569,9 @@ ParseResult HandleOp::parse(OpAsmParser &parser, OperationState &result) {
     return parser.emitError(bodyLoc, "expected non-empty body");
 
   if (succeeded(parser.parseOptionalColon())) {
-    call_interface_impl::parseFunctionResultList(parser, resultTypes,
-                                                           resultAttrs);
+    if (failed(call_interface_impl::parseFunctionResultList(parser, resultTypes,
+                                                           resultAttrs)))
+                                                           return failure();
     result.addTypes(resultTypes);
   }
 
@@ -602,36 +618,6 @@ void HandleOp::print(OpAsmPrinter &p) {
     p << " : " << this->getResultTypes();
   }
 }
-
-// void HandleOp::build(OpBuilder &builder, OperationState &state, SignatureType effect) {
-//    // Store effect
-//    state.addAttribute(getEffectAttrName(state.name), TypeAttr::get(effect));
-//
-//    // create region with handler bb that matches effect signature
-//    auto handlerRegion = state.addRegion();
-//    Block *handlerEntryBlock = new Block();
-//    handlerRegion->push_back(handlerEntryBlock);
-//    // add continuation as argument
-//    ContinuationType contTy = ContinuationType::get(builder.getContext());
-//    handlerEntryBlock->addArgument(contTy, state.location);
-//    for (auto &arg : effect.getFn().getInputs()) {
-//       handlerEntryBlock->addArgument(arg, state.location) ;
-//    }
-//
-//    // auto bodyRegion = state.addRegion();
-//    // bodyRegion->t
-//    // han
-//    //
-//    //
-//    // state.attributes.append(attrs.begin(), attrs.end());
-//    //
-//    // if (argAttrs.empty())
-//    //   return;
-//    // assert(type.getNumInputs() == argAttrs.size());
-//    // call_interface_impl::addArgAndResultAttrs(
-//    //     builder, state, argAttrs, /*resultAttrs=*/{},
-//    //     getArgAttrsAttrName(state.name), getResAttrsAttrName(state.name));
-//  }
 
 //===----------------------------------------------------------------------===//
 // ReturnOp
